@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서울아트가이드 — 프로토타입 v1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #888;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 28px 24px 60px;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+.wrapper {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* ─── Device ─────────────────────────────── */
+.device {
+  width: 375px;
+  height: 812px;
+  flex-shrink: 0;
+  border: 2px solid #222;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  border-radius: 4px;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  -webkit-overflow-scrolling: touch;
+}
+.screen.active { transform: translateX(0); }
+.screen.slide-out { transform: translateX(-25%); }
+.screen::-webkit-scrollbar { width: 3px; }
+.screen::-webkit-scrollbar-thumb { background: #ddd; }
+
+/* ─── Spec Panel ──────────────────────────── */
+.spec-panel {
+  width: 300px;
+  height: 812px;
+  flex-shrink: 0;
+  border: 2px solid #222;
+  border-radius: 4px;
+  background: #fff;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.spec-panel::-webkit-scrollbar { width: 4px; }
+.spec-panel::-webkit-scrollbar-thumb { background: #ccc; }
+
+.sp-screen-header {
+  background: #111;
+  color: #fff;
+  padding: 12px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.sp-screen-id {
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+.sp-screen-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sp-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eee;
+}
+.sp-section-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #aaa;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.sp-purpose {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #333;
+}
+
+/* components */
+.sp-chips { display: flex; flex-direction: column; gap: 4px; }
+.sp-chip {
+  border: 1px solid #333;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #111;
+  line-height: 1.4;
+}
+.sp-chip-note {
+  font-size: 9px;
+  color: #888;
+  display: block;
+  margin-top: 1px;
+}
+
+/* interactions */
+.sp-interaction {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 11px;
+}
+.sp-interaction:last-child { border-bottom: none; }
+.sp-trigger { color: #555; flex: 1; line-height: 1.4; }
+.sp-arrow { color: #bbb; flex-shrink: 0; }
+.sp-result { color: #111; font-weight: 600; flex: 1; line-height: 1.4; }
+.sp-interaction-note { display: block; font-size: 10px; color: #bbb; font-weight: 400; margin-top: 2px; }
+
+/* states */
+.sp-state { display: flex; gap: 7px; align-items: flex-start; padding: 4px 0; font-size: 11px; }
+.sp-state-badge {
+  font-size: 9px; font-weight: 700;
+  background: #111; color: #fff;
+  padding: 2px 6px; flex-shrink: 0;
+  letter-spacing: 0.04em;
+  margin-top: 1px;
+}
+.sp-state-badge.variant { background: #555; }
+.sp-state-badge.loading { background: #777; }
+.sp-state-badge.empty   { background: #999; }
+.sp-state-badge.error   { background: #c00; }
+.sp-state-desc { color: #555; line-height: 1.5; }
+
+/* data binding */
+.sp-data-row {
+  font-size: 11px; color: #666;
+  padding: 3px 0;
+  line-height: 1.5;
+  border-bottom: 1px solid #f5f5f5;
+  font-family: "SF Mono", "Fira Mono", monospace;
+}
+.sp-data-row:last-child { border-bottom: none; }
+
+/* open items */
+.sp-open-item {
+  display: flex; gap: 6px;
+  font-size: 11px; line-height: 1.5;
+  padding: 4px 0;
+  color: #c00;
+  border-bottom: 1px solid #fff0f0;
+}
+.sp-open-item:last-child { border-bottom: none; }
+.sp-open-dot { flex-shrink: 0; color: #c00; }
+
+/* note */
+.sp-note {
+  font-size: 11px; color: #888;
+  background: #f9f9f9;
+  padding: 8px 10px;
+  line-height: 1.6;
+  border-left: 2px solid #ddd;
+}
+
+/* ─── Menu overlay ────────────────────────── */
+.overlay {
+  position: absolute; inset: 0; z-index: 100;
+  pointer-events: none;
+  background: rgba(0,0,0,0);
+  transition: background 0.22s;
+}
+.overlay.open { pointer-events: all; }
+
+.drawer {
+  position: absolute; top: 0; right: 0;
+  width: 100%; height: 100%;
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+}
+.overlay.open .drawer { transform: translateX(0); }
+
+.drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px; padding: 0 16px; border-bottom: 1px solid #eee;
+}
+.drawer-logo { font-size: 13px; font-weight: 700; }
+.drawer-item {
+  display: block; padding: 16px 20px;
+  font-size: 17px; font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer; color: #111;
+}
+.drawer-item:active { background: #f5f5f5; }
+
+/* ─── Topbar ──────────────────────────────── */
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 52px; padding: 0 16px;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  position: sticky; top: 0; z-index: 20;
+}
+.topbar .btn-icon { justify-self: end; }
+.topbar .back-btn { justify-self: start; }
+.logo { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; }
+.btn-icon { background: none; border: none; font-size: 20px; cursor: pointer; padding: 6px; line-height: 1; color: #111; }
+.back-btn { background: none; border: none; font-size: 13px; cursor: pointer; color: #111; padding: 6px 0; }
+
+/* ─── Page elements ───────────────────────── */
+.page-title {
+  font-size: 22px; font-weight: 800;
+  padding: 16px 16px 14px;
+  border-bottom: 2px solid #111;
+}
+
+.section { padding: 16px; border-bottom: 1px solid #eee; }
+.section-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 15px; font-weight: 700; }
+.link-more { font-size: 11px; color: #888; cursor: pointer; background: none; border: none; text-decoration: underline; }
+
+.thumb { background: #e4e4e4; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #bbb; }
+.thumb-hero   { width: 100%; height: 190px; }
+.thumb-sm     { width: 100%; height: 78px; }
+.thumb-side   { width: 88px; height: 72px; flex-shrink: 0; }
+.thumb-detail { width: 100%; height: 200px; }
+.thumb-mini   { width: 60px; height: 50px; flex-shrink: 0; }
+
+.ad-strip {
+  height: 78px;
+  background: repeating-linear-gradient(45deg, #efefef, #efefef 5px, #e5e5e5 5px, #e5e5e5 10px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #bbb;
+  border-top: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0;
+}
+
+.meta { font-size: 11px; color: #999; display: flex; flex-wrap: wrap; gap: 5px; }
+.meta span + span::before { content: "·"; margin-right: 5px; }
+
+/* Main magazine */
+.mag-card-feat { cursor: pointer; border: 1px solid #eee; margin-bottom: 12px; }
+.mag-card-feat:active { opacity: 0.7; }
+.mag-card-feat .info { padding: 10px 12px; }
+.mag-card-feat .ttl { font-size: 15px; font-weight: 700; margin-bottom: 4px; line-height: 1.4; }
+.mag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mag-card-sm { cursor: pointer; border: 1px solid #eee; }
+.mag-card-sm:active { opacity: 0.7; }
+.mag-card-sm .info { padding: 7px 9px; }
+.mag-card-sm .ttl { font-size: 12px; font-weight: 600; margin-bottom: 2px; line-height: 1.3; }
+
+/* Main column */
+.col-card { padding: 12px 0; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.col-card:last-child { border-bottom: none; }
+.col-card:active { opacity: 0.7; }
+.col-card .series-lbl { font-size: 10px; color: #aaa; margin-bottom: 3px; }
+.col-card .ttl { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 5px; }
+
+/* Filter */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-bottom: 1px solid #eee; }
+.chip { flex-shrink: 0; border: 1px solid #ccc; padding: 4px 12px; font-size: 12px; cursor: pointer; background: #fff; color: #444; }
+.chip.on { background: #111; color: #fff; border-color: #111; }
+.chip.disabled { color: #ccc; border-color: #eee; cursor: default; pointer-events: none; }
+
+/* Sort */
+.sort-bar { display: flex; border-bottom: 1px solid #eee; }
+.sort-tab { flex: 1; padding: 9px; text-align: center; font-size: 12px; cursor: pointer; border: none; background: #fff; border-bottom: 2px solid transparent; color: #888; }
+.sort-tab.on { font-weight: 700; color: #111; border-bottom-color: #111; }
+
+/* Series card */
+.series-card { border: 1px solid #e8e8e8; margin-bottom: 10px; cursor: pointer; }
+.series-card:active { opacity: 0.75; }
+.sc-body { padding: 12px; }
+.sc-title-link { font-size: 14px; font-weight: 700; text-decoration: underline; display: inline-block; color: #111; margin-bottom: 4px; }
+.sc-author { font-size: 12px; color: #999; margin-bottom: 8px; }
+.sc-divider { border: none; border-top: 1px solid #f0f0f0; margin-bottom: 8px; }
+.sc-latest-lbl { font-size: 10px; color: #bbb; margin-bottom: 2px; }
+.sc-latest-ttl { font-size: 13px; color: #333; }
+
+/* Article card */
+.article-card { padding: 13px 16px; border-bottom: 1px solid #eee; cursor: pointer; }
+.article-card:last-child { border-bottom: none; }
+.article-card:active { background: #fafafa; }
+.ac-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 5px; }
+
+/* Series header */
+.series-hd { padding: 16px; border-bottom: 1px solid #eee; }
+.series-hd-title { font-size: 20px; font-weight: 800; margin-bottom: 10px; line-height: 1.3; }
+.series-badge { font-size: 10px; padding: 2px 6px; border-radius: 2px; white-space: nowrap; }
+.series-badge.regular  { background: #111; color: #fff; }
+.series-badge.external { background: #fff; color: #111; border: 1px solid #111; }
+.series-badge.past     { background: #f0f0f0; color: #999; }
+.columnist-profile { display: flex; gap: 12px; align-items: flex-start; }
+.list-count-bar { padding: 10px 16px; font-size: 12px; color: #999; border-bottom: 1px solid #eee; }
+.list-header-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid #eee; }
+.list-header-title { font-size: 13px; font-weight: 700; }
+.list-header-link { font-size: 12px; color: #666; background: none; border: none; cursor: pointer; padding: 0; }
+.columnist-photo { width: 70px; height: 70px; flex-shrink: 0; font-size: 10px; color: #bbb; }
+.columnist-bio-text { font-size: 13px; color: #666; line-height: 1.7; flex: 1; padding-top: 2px; }
+
+/* Article detail */
+.article-hd { padding: 16px; border-bottom: 1px solid #eee; }
+.content-tag { display: inline-block; border: 1px solid #333; padding: 2px 8px; font-size: 10px; letter-spacing: 0.06em; margin-bottom: 8px; cursor: pointer; }
+.content-tag:active { background: #111; color: #fff; }
+.series-link { font-size: 11px; color: #999; text-decoration: underline; cursor: pointer; display: block; margin-bottom: 8px; }
+.article-main-title { font-size: 20px; font-weight: 800; line-height: 1.3; margin-bottom: 10px; }
+.byline { font-size: 12px; color: #999; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.article-body { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; line-height: 1.85; color: #222; }
+.article-body p { margin-bottom: 14px; }
+.article-body p:last-child { margin-bottom: 0; }
+
+.author-info { padding: 14px 16px; border-bottom: 1px solid #eee; background: #fafafa; }
+.author-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.author-bio { font-size: 12px; color: #666; line-height: 1.6; }
+
+.post-nav { padding: 14px 16px; border-bottom: 1px solid #eee; }
+.pn-section-title { font-size: 10px; font-weight: 700; color: #aaa; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+.pn-card { padding: 9px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer; }
+.pn-card:last-child { border-bottom: none; }
+.pn-card:active { opacity: 0.7; }
+.pn-title { font-size: 13px; color: #111; text-decoration: underline; margin-bottom: 3px; }
+.pn-meta { font-size: 11px; color: #bbb; }
+
+.concept-zone { border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+.concept-zone-label { font-size: 9px; color: #bbb; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; padding: 7px 16px 0; }
+
+.series-cta { padding: 16px; border-bottom: 1px solid #eee; }
+.series-cta-btn { display: block; width: 100%; border: 2px solid #111; padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; text-align: center; color: #111; }
+.series-cta-btn:active { background: #f0f0f0; }
+
+/* Magazine list */
+.mag-list-feat { cursor: pointer; border-bottom: 1px solid #eee; }
+.mag-list-feat:active { opacity: 0.75; }
+.mag-list-feat .info { padding: 12px 16px; }
+.mag-list-feat .ttl { font-size: 16px; font-weight: 700; margin-bottom: 5px; line-height: 1.4; }
+.mag-list-sec { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #eee; cursor: pointer; align-items: flex-start; }
+.mag-list-sec:active { background: #fafafa; }
+.mag-list-sec .ttl { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 5px; }
+
+.pagination { display: flex; justify-content: center; gap: 4px; padding: 16px; }
+.pg-btn { border: 1px solid #ddd; padding: 7px 11px; font-size: 12px; cursor: pointer; background: #fff; }
+.pg-btn.on { border-color: #111; border-width: 2px; font-weight: 700; }
+
+@media (max-width: 720px) {
+  body { padding: 0; background: #fff; }
+  .wrapper { gap: 0; }
+  .device { width: 100%; height: 100dvh; border: none; box-shadow: none; border-radius: 0; }
+  .spec-panel { display: none; }
+}
+
+/* spec 파라미터 없을 때 기본 숨김 */
+body.no-spec .spec-panel { display: none; }
+body.no-spec { justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- DEVICE                             -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="device" id="device">
+
+    <!-- Menu overlay -->
+    <div class="overlay" id="menuOverlay" onclick="handleOverlayClick(event)">
+      <div class="drawer" onclick="event.stopPropagation()">
+        <div class="drawer-header">
+          <span class="drawer-logo">서울아트가이드</span>
+          <button class="btn-icon" onclick="closeMenu()">✕</button>
+        </div>
+        <div class="drawer-item" onclick="nav('s3')">칼럼</div>
+        <div class="drawer-item" onclick="nav('s6')">매거진</div>
+      </div>
+    </div>
+
+    <!-- S1: Main -->
+    <div class="screen active" id="s1">
+      <div class="topbar">
+        <span></span>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="section">
+        <div class="section-hd">
+          <span class="section-title">매거진</span>
+          <button class="link-more" onclick="nav('s6')">전체 보기 →</button>
+        </div>
+        <div class="mag-card-feat" onclick="nav('s7',{id:1})">
+          <div class="ad-strip" style="height:190px; font-size:12px; color:#bbb;">[매거진 강조형 카드 — 컨셉 확인용]</div>
+          <div class="info">
+            <div class="ttl">2026 베니스 비엔날레 한국관 현장 취재</div>
+            <div class="meta"><span>이지은 기자</span><span>2026.04.22</span></div>
+          </div>
+        </div>
+        <div class="mag-grid">
+          <div class="mag-card-sm" onclick="nav('s7',{id:2})">
+            <div class="thumb thumb-sm">[썸네일]</div>
+            <div class="info"><div class="ttl">작가 박서보 인터뷰</div><div class="meta"><span>2026.03.15</span></div></div>
+          </div>
+          <div class="mag-card-sm" onclick="nav('s7',{id:3})">
+            <div class="thumb thumb-sm">[썸네일]</div>
+            <div class="info"><div class="ttl">국립현대미술관 신소장품전</div><div class="meta"><span>2026.03.08</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="ad-strip">[광고 영역 — 다음 스프린트 설계]</div>
+      <div class="section">
+        <div class="section-hd">
+          <span class="section-title">칼럼</span>
+          <button class="link-more" onclick="nav('s3')">전체 보기 →</button>
+        </div>
+        <div class="col-card" onclick="nav('s5',{id:1})">
+          <div class="series-lbl">윤진섭 미술시평</div>
+          <div class="ttl">한국 현대미술의 새로운 지형도</div>
+          <div class="meta"><span>윤진섭</span><span>2026.04.20</span></div>
+        </div>
+        <div class="col-card" onclick="nav('s5',{id:101})">
+          <div class="series-lbl">미술÷시간</div>
+          <div class="ttl">근대 조각의 재발견 — 김복진을 중심으로</div>
+          <div class="meta"><span>이선영</span><span>2026.04.18</span></div>
+        </div>
+        <div class="col-card" onclick="nav('s5',{id:201})">
+          <div class="series-lbl">화제의 전시</div>
+          <div class="ttl">갤러리현대 50주년 기념전 리뷰</div>
+          <div class="meta"><span>편집부</span><span>2026.04.15</span></div>
+        </div>
+        <div class="col-card" onclick="nav('s5',{id:301})">
+          <div class="series-lbl">미술시장 리포트</div>
+          <div class="ttl">2026년 1분기 경매 결산</div>
+          <div class="meta"><span>김영호</span><span>2026.04.08</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S3: Column List -->
+    <div class="screen" id="s3">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="page-title">칼럼</div>
+
+      <div class="ad-strip" style="height:200px; font-size:12px; color:#bbb;">[추천 칼럼 — 컨셉 확인용]</div>
+      <div id="s3CtaBanner" onclick="nav('s8')" style="margin:12px 0; padding:16px; background:#111; color:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:14px; color:#aaa; margin-bottom:5px;" id="s3CtaStat"></div>
+          <div style="font-size:14px; font-weight:700; letter-spacing:0.01em;">칼럼 전체보기</div>
+        </div>
+        <div style="font-size:20px; color:#fff;">→</div>
+      </div>
+      <div style="padding:16px 16px 4px; font-size:16px; font-weight:500; color:#111;">최신 칼럼</div>
+      <div id="s3LatestList"></div>
+    </div>
+
+    <!-- S8: 칼럼 시리즈 전체 -->
+    <div class="screen" id="s8">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="page-title">칼럼</div>
+      <div style="padding: 12px 16px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #eee;">목차보기</div>
+      <div class="filter-bar" id="s8Filters">
+        <button class="chip on" onclick="filterSeriesS8(this,'all')">최신순</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㄱ')">ㄱ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㄴ')">ㄴ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㄷ')">ㄷ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㄹ')">ㄹ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅁ')">ㅁ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅂ')">ㅂ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅅ')">ㅅ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅇ')">ㅇ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅈ')">ㅈ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅊ')">ㅊ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅋ')">ㅋ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅌ')">ㅌ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅍ')">ㅍ</button>
+        <button class="chip" onclick="filterSeriesS8(this,'ㅎ')">ㅎ</button>
+      </div>
+      <div style="padding:8px 16px 16px;" id="s8List"></div>
+    </div>
+
+    <!-- S4: Column Article List -->
+    <div class="screen" id="s4">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="page-title" onclick="nav('s3')" style="cursor:pointer">칼럼</div>
+      <div class="series-hd">
+        <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
+          <div class="series-hd-title" id="s4Title">—</div>
+          <div class="series-badge" id="s4Status"></div>
+        </div>
+        <div id="s4AuthorBox" style="background:#f7f7f7; margin: 10px -16px -16px; padding: 12px 16px;">
+          <div class="columnist-profile">
+            <div class="columnist-photo" id="s4AuthorPhoto" style="background:#ddd; display:flex; align-items:center; justify-content:center; font-size:10px; color:#bbb;">[사진]</div>
+            <div style="flex:1; padding-top:2px;">
+              <div class="author-name" id="s4AuthorName"></div>
+              <div class="columnist-bio-text" id="s4Desc"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="list-count-bar">총 <span id="s4Count">0</span>편</div>
+      <div id="s4List"></div>
+      <div class="pagination">
+        <button class="pg-btn">←</button>
+        <button class="pg-btn on">1</button>
+        <button class="pg-btn">2</button>
+        <button class="pg-btn">3</button>
+        <button class="pg-btn">→</button>
+      </div>
+    </div>
+
+    <!-- S5: Column Detail -->
+    <div class="screen" id="s5">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="article-hd">
+        <div class="content-tag" onclick="nav('s3')">칼럼</div>
+        <div class="series-link" id="s5SeriesLink" onclick="navToSeries()">시리즈명</div>
+        <div class="article-main-title" id="s5Title">—</div>
+        <div class="byline"><span id="s5Author"></span><span>·</span><span id="s5Date"></span></div>
+      </div>
+      <div class="article-body" id="s5Body"></div>
+      <div class="author-info" id="s5AuthorBox">
+        <div class="author-name" id="s5AuthorName"></div>
+        <div class="author-bio" id="s5AuthorBio"></div>
+      </div>
+      <div class="series-cta">
+        <button class="series-cta-btn" id="s5Cta" onclick="navToSeries()">시리즈 전체 보기 →</button>
+      </div>
+      <div class="concept-zone">
+        <div class="concept-zone-label">[추천 콘텐츠 — 컨셉확인용]</div>
+        <div class="post-nav" id="s5SameSeries">
+          <div class="pn-section-title">관련 칼럼</div>
+        </div>
+        <div class="post-nav">
+          <div class="pn-section-title">저자의 다른 글</div>
+          <div class="pn-card" id="s5OtherCard">
+            <div class="pn-title" id="s5OtherTitle"></div>
+            <div class="pn-meta" id="s5OtherMeta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S6: Magazine List -->
+    <div class="screen" id="s6">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div class="page-title">매거진</div>
+      <div class="mag-list-feat" onclick="nav('s7',{id:1})">
+        <div class="ad-strip" style="height:200px; font-size:12px; color:#bbb;">[매거진 강조형 카드 — 컨셉 확인용]</div>
+        <div class="info">
+          <div class="ttl">2026 베니스 비엔날레 한국관 현장 취재</div>
+          <div class="meta"><span>이지은 기자</span><span>2026.04.22</span><span>조회 3,241</span></div>
+        </div>
+      </div>
+      <div class="mag-list-sec" onclick="nav('s7',{id:2})">
+        <div class="thumb thumb-side">[썸네일]</div>
+        <div><div class="ttl">작가 박서보 인터뷰 — 단색화의 현재</div><div class="meta"><span>김민지</span><span>2026.03.15</span><span>조회 2,108</span></div></div>
+      </div>
+      <div class="mag-list-sec" onclick="nav('s7',{id:3})">
+        <div class="thumb thumb-side">[썸네일]</div>
+        <div><div class="ttl">국립현대미술관 신소장품전 리뷰</div><div class="meta"><span>박준호</span><span>2026.03.08</span><span>조회 1,876</span></div></div>
+      </div>
+      <div class="mag-list-sec" onclick="nav('s7',{id:4})">
+        <div class="thumb thumb-side">[썸네일]</div>
+        <div><div class="ttl">젊은 조각가들의 공간 실험</div><div class="meta"><span>이수민</span><span>2026.02.28</span><span>조회 1,432</span></div></div>
+      </div>
+      <div class="mag-list-sec" onclick="nav('s7',{id:5})">
+        <div class="thumb thumb-side">[썸네일]</div>
+        <div><div class="ttl">한국 미술 시장 2026 결산</div><div class="meta"><span>정현아</span><span>2026.02.15</span><span>조회 2,654</span></div></div>
+      </div>
+      <div class="pagination">
+        <button class="pg-btn">←</button>
+        <button class="pg-btn on">1</button>
+        <button class="pg-btn">2</button>
+        <button class="pg-btn">→</button>
+      </div>
+      <div style="text-align:center; font-size:11px; color:#bbb; padding-bottom:12px;">프로토타입 미구현</div>
+    </div>
+
+    <!-- S7: Magazine Detail -->
+    <div class="screen" id="s7">
+      <div class="topbar">
+        <button class="back-btn" onclick="back()">← 뒤로</button>
+        <span class="logo" onclick="goHome()" style="cursor:pointer">서울아트가이드</span>
+        <button class="btn-icon" onclick="openMenu()">☰</button>
+      </div>
+      <div style="padding: 14px 16px 0;">
+        <div class="content-tag" onclick="nav('s6')">매거진</div>
+      </div>
+      <div class="ad-strip" style="height:200px; font-size:12px; color:#bbb;">[대표이미지 — 컨셉 확인용]</div>
+      <div class="article-hd">
+        <div class="article-main-title" id="s7Title">—</div>
+        <div class="byline"><span id="s7Author"></span><span>·</span><span id="s7Date"></span></div>
+      </div>
+      <div class="article-body" id="s7Body"></div>
+      <div class="author-info" id="s7AuthorBox">
+        <div class="author-bio">김달진미술연구소 편집진이 직접 현장을 방문해 취재·인터뷰한 생생한 기록을 담습니다.</div>
+      </div>
+      <div class="concept-zone">
+        <div class="concept-zone-label">[추천 콘텐츠 — 컨셉확인용]</div>
+        <div class="post-nav">
+          <div class="pn-section-title">관련 매거진</div>
+          <div id="s7RelatedList"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /device -->
+
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SPEC PANEL                         -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="spec-panel" id="specPanel"></div>
+
+</div><!-- /wrapper -->
+
+<script>
+// ─── SPEC 파라미터 체크 ───────────────────────────────────────
+if (new URLSearchParams(window.location.search).get('mode') !== 'spec') {
+  document.body.classList.add('no-spec');
+}
+
+// ─── DATA ────────────────────────────────────────────────────
+const SERIES = [
+  { id:1,  title:'윤진섭 미술시평',   author:'윤진섭',  type:'연재칼럼', desc:'미술평론가 윤진섭이 한국 현대미술의 흐름과 현안을 짚는 시평 칼럼입니다.' },
+  { id:2,  title:'화제의 전시',       author:'편집부',  type:'연재칼럼', desc:'서울아트가이드 편집부가 선정한 주목할 전시의 리뷰와 현장 기록입니다.' },
+  { id:3,  title:'미술÷시간',         author:'이선영',  type:'연재칼럼', desc:'미술평론가 이선영이 한국 미술사의 주요 장면을 재조명하는 연재입니다.' },
+  { id:4,  title:'미술시장 리포트',   author:'김영호',  type:'연재칼럼', desc:null },
+  { id:5,  title:'작가에세이',        author:'각 필자', type:'외부칼럼', desc:null },
+  { id:6,  title:'한국미술계의 과제', author:'이원일',  type:'지난칼럼', desc:'2000년대 초 한국 미술계의 구조적 문제를 다룬 연재입니다.' },
+  { id:7,  title:'해외미술통신',      author:'박이소',  type:'지난칼럼', desc:'뉴욕과 베를린 현장을 전하는 해외 통신 연재입니다.' },
+  { id:8,  title:'고충환의 미술비평', author:'고충환',  type:'외부칼럼', desc:null },
+  { id:9,  title:'전시 기획의 현장',  author:'최정화',  type:'지난칼럼', desc:'큐레이터 최정화가 전시 기획 과정을 기록한 연재입니다.' },
+  { id:10, title:'판화의 재발견',     author:'오원배',  type:'연재칼럼', desc:'판화 작가 오원배가 국내외 판화 예술의 현재를 탐구합니다.' },
+];
+
+const ARTICLES = {
+  1: [
+    { id:1,   title:'한국 현대미술의 새로운 지형도',          author:'윤진섭', date:'2026.04.20', views:1832, bio:'미술평론가 · 한국미술평론가협회 회장. 30년간 한국 현대미술 비평을 이끌어왔습니다.' },
+    { id:2,   title:'추상표현주의의 한국적 변용',             author:'윤진섭', date:'2026.04.10', views:1204, bio:'미술평론가 · 한국미술평론가협회 회장.' },
+    { id:3,   title:'아시아 미술 시장의 재편과 한국의 위치', author:'윤진섭', date:'2026.03.28', views:987,  bio:'미술평론가 · 한국미술평론가협회 회장.' },
+    { id:4,   title:'한국 단색화의 세계적 부상',              author:'윤진섭', date:'2026.03.10', views:1543, bio:'미술평론가 · 한국미술평론가협회 회장.' },
+    { id:5,   title:'미술관 건립 붐과 그 이면',              author:'윤진섭', date:'2026.02.20', views:876,  bio:'미술평론가 · 한국미술평론가협회 회장.' },
+  ],
+  2: [
+    { id:201, title:'갤러리현대 50주년 기념전 리뷰',  author:'편집부', date:'2026.04.15', views:2103, bio:null },
+    { id:202, title:'2026 서울아트위크 총평',          author:'편집부', date:'2026.04.02', views:1876, bio:null },
+    { id:203, title:'아모레퍼시픽미술관 신년 개막전',  author:'편집부', date:'2026.03.20', views:1432, bio:null },
+    { id:204, title:'리움미술관 이우환 회고전',        author:'편집부', date:'2026.03.05', views:2341, bio:null },
+  ],
+  3: [
+    { id:101, title:'근대 조각의 재발견 — 김복진을 중심으로', author:'이선영', date:'2026.04.18', views:1654, bio:'미술평론가. 근대미술 전공. 이화여대에서 강의합니다.' },
+    { id:102, title:'1970년대 개념미술과 민중미술의 교차',     author:'이선영', date:'2026.04.05', views:1123, bio:'미술평론가. 근대미술 전공.' },
+    { id:103, title:'이우환과 모노하, 그 이후',               author:'이선영', date:'2026.03.22', views:1876, bio:'미술평론가. 근대미술 전공.' },
+    { id:104, title:'박수근과 이중섭의 시대',                 author:'이선영', date:'2026.03.08', views:2103, bio:'미술평론가. 근대미술 전공.' },
+  ],
+  4: [
+    { id:301, title:'2026년 1분기 경매 결산',        author:'김영호', date:'2026.04.08', views:2341, bio:null },
+    { id:302, title:'국내 아트페어 수익 구조 분석',   author:'김영호', date:'2026.03.15', views:1876, bio:null },
+    { id:303, title:'해외 갤러리의 국내 진출 현황',   author:'김영호', date:'2026.02.28', views:1234, bio:null },
+  ],
+  5: [
+    { id:401, title:'나의 작업실에서 — 물질과 시간', author:'김아무개', date:'2026.04.12', views:765, bio:null },
+    { id:402, title:'그림을 그린다는 것의 의미',     author:'이아무개', date:'2026.03.30', views:543, bio:null },
+  ],
+  6: [
+    { id:501, title:'갤러리 생태계와 작가 지원 구조', author:'이원일', date:'2018.06.10', views:432, bio:'큐레이터, 미술행정가.' },
+    { id:502, title:'미술 행정의 문제와 개선 방향',   author:'이원일', date:'2018.05.20', views:321, bio:'큐레이터, 미술행정가.' },
+  ],
+  7: [
+    { id:601, title:'베를린 갤러리 위크엔드 현장 르포', author:'박이소', date:'2019.05.12', views:654, bio:null },
+    { id:602, title:'뉴욕 아모리 쇼 리뷰',              author:'박이소', date:'2019.03.22', views:543, bio:null },
+  ],
+  8: [
+    { id:701, title:'추상의 귀환, 혹은 새로운 구상', author:'고충환', date:'2026.04.14', views:876, bio:'미술평론가. 독립 큐레이터로도 활동합니다.' },
+    { id:702, title:'동시대 한국 회화의 가능성',     author:'고충환', date:'2026.03.28', views:754, bio:'미술평론가.' },
+  ],
+  9: [{ id:801, title:'전시를 만드는 시간', author:'최정화', date:'2020.08.10', views:987, bio:null }],
+  10:[
+    { id:901, title:'실크스크린의 귀환', author:'오원배', date:'2026.04.10', views:654, bio:'판화 작가. 서울대 미대 교수.' },
+    { id:902, title:'에칭의 현재',       author:'오원배', date:'2026.03.20', views:543, bio:'판화 작가.' },
+  ],
+};
+
+const ART_MAP = {};
+Object.values(ARTICLES).flat().forEach(a => { ART_MAP[a.id] = a; });
+const ART_SERIES = {};
+Object.entries(ARTICLES).forEach(([sid, arts]) => arts.forEach(a => { ART_SERIES[a.id] = +sid; }));
+
+const MAGAZINES = {
+  1: { id:1, title:'2026 베니스 비엔날레 한국관 현장 취재', author:'이지은 기자', date:'2026.04.22', authorBio:'서울아트가이드 수석기자. 국내외 현장 취재를 담당합니다.', body:'이번 베니스 비엔날레 한국관에서는 \'작동하는 몸\'이라는 주제 아래 세 명의 작가가 참여했다.<br><br>한국관 커미셔너는 "글로벌 맥락 속에서 한국의 신체성과 정치성을 새롭게 해석하고자 했다"고 설명했다. 작가들은 각기 다른 방식으로 이 주제에 접근했지만, 세 작업 모두 기술 매개적 신체 경험이라는 공통 분모를 공유한다.<br><br>비엔날레 현장을 직접 방문해 작가들과 인터뷰를 진행했다. 개막 당일 한국관 앞에는 오전부터 긴 줄이 늘어섰다.' },
+  2: { id:2, title:'작가 박서보 인터뷰 — 단색화의 현재', author:'김민지', date:'2026.03.15', authorBio:'미술 전문 작가. 다수의 작가 인터뷰를 진행했습니다.', body:'박서보 작가를 만난 곳은 서울 종로구에 위치한 그의 작업실이었다.<br><br>"단색화는 한 가지 색을 쓰는 것이 아닙니다. 색을 지워가는 과정, 그 행위 자체가 작업이에요." 인터뷰 내내 그는 단색화에 대한 오해를 부드럽게 바로잡았다.<br><br>최근 국제 미술 시장에서 한국 단색화에 대한 관심이 다시 높아지고 있다.' },
+  3: { id:3, title:'국립현대미술관 신소장품전 리뷰', author:'박준호', date:'2026.03.08', authorBio:null, body:'국립현대미술관 서울관에서 열리고 있는 신소장품전은 최근 3년간 수집한 작품들을 공개하는 자리다.<br><br>이번 전시에서 눈에 띄는 것은 젊은 작가들의 작품 비중이 크게 늘었다는 점이다. 2030 세대 작가들의 작품이 전체 전시의 절반 가까이를 차지한다.' },
+  4: { id:4, title:'젊은 조각가들의 공간 실험', author:'이수민', date:'2026.02.28', authorBio:'조각 전공 비평가. 공간 예술을 중심으로 글을 씁니다.', body:'최근 젊은 조각 작가들이 전통적인 조각의 개념을 해체하고 공간 자체를 작품으로 만드는 시도가 늘고 있다.<br><br>이들의 공통점은 완성된 오브제보다 관객이 공간을 경험하는 방식에 집중한다는 것이다.' },
+  5: { id:5, title:'한국 미술 시장 2026 결산', author:'정현아', date:'2026.02.15', authorBio:null, body:'2026년 상반기 한국 미술 시장은 지난해의 조정 국면을 이어가는 모습이다. 경매 낙찰 총액은 전년 대비 약 15% 감소했지만, 일부 인기 작가들의 작품은 강세를 보였다.' },
+};
+
+const BODY_PARAGRAPHS = [
+  '이 글은 한국 현대미술의 현주소를 짚어보는 시도다. 지난 수십 년간 국내 미술계는 급격한 변화를 겪어왔다. 국제 무대에서의 위상이 높아지는 한편, 내부적으로는 여전히 풀어야 할 과제들이 산적해 있다.',
+  '특히 주목할 점은 신진 작가들의 약진이다. 이들은 전통적인 화이트큐브를 벗어나 도심 곳곳에서 실험적인 작업을 펼치고 있으며, SNS와 디지털 플랫폼을 통해 더 넓은 관객과 소통하고 있다.',
+  '반면 제도권 미술관과 상업 갤러리의 경계는 여전히 공고하다. 이 경계를 허물려는 시도들이 곳곳에서 이루어지고 있지만, 그 과정은 쉽지 않다. 컬렉터층의 변화, 아트페어의 급증, 온라인 미술 시장의 부상 등 다양한 변수들이 복잡하게 얽혀 있다.',
+];
+
+// ─── SPEC DATA ───────────────────────────────────────────────
+const SPEC = {
+  s2: {
+    id: 'S2', name: '메뉴',
+    purpose: '서비스 전체 탐색 — 1뎁스 콘텐츠 진입점',
+    components: [
+      { name: '상단 바',   note: '로고(홈) · 닫기 버튼' },
+      { name: '메뉴 항목', note: '칼럼 · 매거진' },
+    ],
+    interactions: [
+      { trigger: '칼럼 탭',           result: 'S3 칼럼 목록' },
+      { trigger: '매거진 탭',         result: 'S6 매거진 목록' },
+      { trigger: '닫기 · 외부 영역 탭', result: '이전 화면 복귀' },
+    ],
+    open: [
+      '메뉴 구성 항목 확정 여부 (전시 등 추가 시 재설계)',
+    ],
+  },
+  s1: {
+    id: 'S1', name: '메인',
+    purpose: '서비스 첫 진입점. 매거진·광고·칼럼 3개 영역으로 서비스의 성격을 즉시 전달. (전시는 추후 추가)',
+    components: [
+      { name: '상단 바',           note: '전 화면 공통 — 로고(홈) · 메뉴' },
+      { name: '매거진 강조형 카드', note: '컨셉 확인용 — 미확정' },
+      { name: '매거진 영역',       note: '연구소Blog의 글 — 노출 기준 미확정' },
+      { name: '광고 영역',         note: '다음 스프린트 설계' },
+      { name: '칼럼 영역',         note: '연구소Blog를 제외한 칼럼 글 — 노출 기준 미확정' },
+    ],
+    interactions: [
+      { trigger: '매거진 전체보기', result: 'S6 매거진 목록' },
+      { trigger: '매거진 카드 탭',  result: 'S7 매거진 상세' },
+      { trigger: '칼럼 전체보기',   result: 'S3 칼럼 목록' },
+      { trigger: '칼럼 카드 탭',    result: 'S5 칼럼 상세' },
+    ],
+    open: [
+      '매거진 강조형 카드 포함 여부 → 고품질 이미지 필요',
+      '매거진·광고 영역 순서',
+      '매거진/칼럼 영역 노출 기준(최신순/추천순)',
+      '전시 영역 위치 → Phase 4 포함 시 재설계',
+    ],
+  },
+  s3: {
+    id: 'S3', name: '칼럼',
+    purpose: '칼럼 글 탐색',
+    components: [
+      { name: '상단 바',            note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '섹션 헤더',          note: '현재 섹션명(칼럼) 표시' },
+      { name: '추천 칼럼 영역',     note: '컨셉 확인용 — 미확정' },
+      { name: '칼럼 전체보기 배너',           note: '칼럼 전체 시리즈 탐색 방법을 제공' },
+      { name: '최신 칼럼 글 영역',  note: '최신글 5건 — 시리즈명 · 제목 · 필자 · 날짜' },
+    ],
+    interactions: [
+      { trigger: '칼럼 전체보기 배너 탭', result: 'S8 칼럼 시리즈 전체' },
+      { trigger: '최신 칼럼 — 시리즈명 탭', result: 'S4 칼럼 글 목록' },
+      { trigger: '최신 칼럼 — 글 탭',     result: 'S5 칼럼 상세' },
+    ],
+    open: [
+      '추천 칼럼 포함 여부 및 노출 기준',
+    ],
+  },
+  s8: {
+    id: 'S8', name: '칼럼 시리즈 전체',
+    purpose: '전체 칼럼 목차 탐색',
+    components: [
+      { name: '상단 바',      note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '섹션 헤더',   note: '현재 섹션명(칼럼) 표시' },
+      { name: '페이지 소개', note: '모든 칼럼 목차보기' },
+      { name: '초성 필터',   note: '최신순(기본) · ㄱ ~ ㅎ' },
+      { name: '시리즈 카드', note: '칼럼 구분 · 시리즈 제목 · 필자 · 최신글 제목 · 날짜' },
+    ],
+    interactions: [
+      { trigger: '초성 필터 선택', result: '초성별 필터링(오름차순)' },
+      { trigger: '시리즈 제목 탭', result: 'S4 칼럼 글 목록' },
+      { trigger: '시리즈 카드 탭', result: 'S5 칼럼 상세 (최신글 직행)' },
+    ],
+    open: [
+      '시리즈명 = 저자명 케이스 → 고도화 시 정제',
+      '시리즈 카드 편수 표시 여부',
+    ],
+  },
+  s4: {
+    id: 'S4', name: '칼럼 글 목록',
+    purpose: '시리즈 내 전체 글 목록',
+    components: [
+      { name: '상단 바',       note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '섹션 헤더',     note: '현재 섹션명(칼럼) 표시' },
+      { name: '시리즈 제목',   note: '' },
+      { name: '칼럼 구분',     note: '연재칼럼 · 지난칼럼 · 외부칼럼', inline: true },
+      { name: '필자 설명글',   note: '칼럼니스트 설명글이 있는 경우만 표시' },
+      { name: '전체 글 수',    note: '' },
+      { name: '글 목록 항목',  note: '제목 · 필자 · 날짜 · 조회수' },
+      { name: '페이지 이동',   note: '' },
+    ],
+    interactions: [
+      { trigger: '섹션 헤더 탭', result: 'S3 칼럼 목록' },
+      { trigger: '글 항목 탭',   result: 'S5 칼럼 상세' },
+      { trigger: '페이지 이동',  result: '선택 페이지로 이동', note: '프로토타입에서는 기능 미구현' },
+    ],
+    open: [
+      '회차순 정렬 포함 여부',
+    ],
+  },
+  s5: {
+    id: 'S5', name: '칼럼 상세',
+    purpose: '칼럼 본문 읽기',
+    components: [
+      { name: '상단 바',              note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '[칼럼] 태그',          note: '탭 시 S3 칼럼 목록으로 이동' },
+      { name: '글 헤더',              note: '시리즈명(링크) · 제목 · 필자 · 날짜' },
+      { name: '본문',                 note: '' },
+      { name: '필자 설명글',           note: '칼럼니스트 설명글이 있는 경우만 표시' },
+      { name: '시리즈 전체보기 버튼', note: 'S4로 이동' },
+      { name: '추천 콘텐츠',           note: '컨셉 확인용 — 미확정' },
+    ],
+    interactions: [
+      { trigger: '[칼럼] 태그 탭',          result: 'S3 칼럼 목록' },
+      { trigger: '글 헤더의 시리즈명 탭',   result: 'S4 칼럼 글 목록' },
+      { trigger: '시리즈 전체보기 버튼 탭', result: 'S4 칼럼 글 목록' },
+      { trigger: '관련 칼럼 글 탭',         result: 'S5 (다른 글)' },
+      { trigger: '저자의 다른 글 탭',   result: 'S5 (다른 글)' },
+    ],
+    open: [
+      '글 헤더 스크롤 시 고정 여부',
+      '추천 콘텐츠 포함 여부 및 노출 기준 → 큐레이팅',
+      '공유 기능 포함 여부 → 클라이언트 확인 후 결정',
+    ],
+  },
+  s6: {
+    id: 'S6', name: '매거진 목록',
+    purpose: '매거진 목록 최신순 조회',
+    components: [
+      { name: '상단 바',           note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '매거진 강조형 카드', note: '컨셉 확인용 — 미확정' },
+      { name: '매거진 목록 영역',   note: '썸네일+텍스트 행' },
+      { name: '페이지 이동',        note: '' },
+    ],
+    interactions: [
+      { trigger: '카드 탭',     result: 'S7 매거진 상세' },
+      { trigger: '페이지 이동', result: '선택 페이지로 이동', note: '프로토타입에서는 기능 미구현' },
+    ],
+    open: [
+      '칼럼 대비 시각적 차별화 방향',
+      '매거진 강조형 카드 포함 여부 → 고품질 이미지 필요',
+    ],
+  },
+  s7: {
+    id: 'S7', name: '매거진 상세',
+    purpose: '매거진 본문 읽기',
+    components: [
+      { name: '상단 바',       note: '전 화면 공통 — 뒤로가기(임시) · 로고(홈) · 메뉴' },
+      { name: '[매거진] 태그', note: '탭 시 S6 매거진 목록으로 이동' },
+      { name: '대표 이미지',   note: '컨셉 확인용 — 미확정' },
+      { name: '글 헤더',       note: '제목 · 필자 · 날짜' },
+      { name: '본문',          note: '' },
+      { name: '매거진 소개',   note: '칼럼과의 차별점 안내 — 직접 취재·촬영·인터뷰한 고품질 콘텐츠임을 전달하는 고정 영역' },
+      { name: '추천 콘텐츠',   note: '컨셉 확인용 — 미확정' },
+    ],
+    interactions: [
+      { trigger: '[매거진] 태그 탭',  result: 'S6 매거진 목록' },
+      { trigger: '관련 매거진 글 탭', result: 'S7 (다른 글)' },
+    ],
+    open: [
+      '칼럼 대비 시각적 차별화 방향',
+      '대표 이미지 포함 여부 → 고품질 이미지 필요',
+      '글 헤더 스크롤 시 고정 여부',
+      '추천 콘텐츠 포함 여부 및 노출 기준 → 큐레이팅',
+      '공유 기능 포함 여부 → 클라이언트 확인 후 결정',
+    ],
+  },
+};
+
+// ─── RENDER SPEC PANEL ───────────────────────────────────────
+function renderSpec(screenId) {
+  const sp = document.getElementById('specPanel');
+  const s = SPEC[screenId];
+  if (!s) { sp.innerHTML = ''; return; }
+
+  const rows = [];
+  s.components.forEach(c => {
+    if (c.inline && rows.length > 0) rows[rows.length - 1].push(c);
+    else rows.push([c]);
+  });
+  const comps = rows.map(row => {
+    if (row.length > 1) {
+      const chips = row.map((c, i) => `<div class="sp-chip"${i === 0 ? ' style="flex:1;"' : ''}>${c.name}${c.note ? `<span class="sp-chip-note">${c.note}</span>` : ''}</div>`).join('');
+      return `<div style="display:flex;gap:6px;">${chips}</div>`;
+    }
+    return `<div class="sp-chip">${row[0].name}${row[0].note ? `<span class="sp-chip-note">${row[0].note}</span>` : ''}</div>`;
+  }).join('');
+
+  const ixns = (s.interactions || []).map(i => `
+    <div class="sp-interaction">
+      <span class="sp-trigger">${i.trigger}</span>
+      <span class="sp-arrow">→</span>
+      <span class="sp-result">${i.result}${i.note ? `<span class="sp-interaction-note">${i.note}</span>` : ''}</span>
+    </div>
+  `).join('');
+
+  const open = (s.open || []).map(o => `
+    <div class="sp-open-item">
+      <span class="sp-open-dot">·</span>
+      <span>${o}</span>
+    </div>
+  `).join('');
+
+  sp.innerHTML = `
+    <div class="sp-screen-header">
+      <div class="sp-screen-id">${s.id}</div>
+      <div class="sp-screen-name">${s.name}</div>
+    </div>
+
+    <div class="sp-section">
+      <div class="sp-section-title">화면 목적</div>
+      <div class="sp-purpose">${s.purpose}</div>
+    </div>
+
+    <div class="sp-section">
+      <div class="sp-section-title">구성 컴포넌트</div>
+      <div class="sp-chips">${comps}</div>
+    </div>
+
+    <div class="sp-section">
+      <div class="sp-section-title">인터랙션</div>
+      ${ixns}
+    </div>
+
+    ${open ? `
+    <div class="sp-section">
+      <div class="sp-section-title" style="color:#c00;">미결 항목</div>
+      ${open}
+    </div>` : ''}
+
+    ${s.note ? `
+    <div class="sp-section">
+      <div class="sp-section-title">참고</div>
+      <div class="sp-note">${s.note}</div>
+    </div>` : ''}
+  `;
+
+  sp.scrollTop = 0;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────
+let navHistory = [];
+
+function goHome() {
+  nav('s1');
+  navHistory = [];
+}
+let currentSeriesId = 1;
+let currentFilter = 'all';
+
+function nav(screenId, params = {}) {
+  const curr = document.querySelector('.screen.active');
+  if (curr) {
+    curr.classList.remove('active');
+    curr.classList.add('slide-out');
+    navHistory.push(curr.id);
+    setTimeout(() => curr.classList.remove('slide-out'), 300);
+  }
+
+  const next = document.getElementById(screenId);
+  next.classList.add('active');
+  next.scrollTop = 0;
+  closeMenu();
+
+  if (screenId === 's3') initS3();
+  if (screenId === 's8') initS8();
+  if (screenId === 's4') initS4(params.seriesId || currentSeriesId);
+  if (screenId === 's5') initS5(params.id);
+  if (screenId === 's7') initS7(params.id || 1);
+
+  renderSpec(screenId);
+}
+
+function back() {
+  if (!navHistory.length) return;
+  const curr = document.querySelector('.screen.active');
+  curr.classList.remove('active');
+
+  const prevId = navHistory.pop();
+  const prev = document.getElementById(prevId);
+  prev.classList.remove('slide-out');
+  prev.classList.add('active');
+  prev.scrollTop = 0;
+
+  renderSpec(prevId);
+}
+
+function navToSeries() { nav('s4', { seriesId: currentSeriesId }); }
+
+// ─── MENU ────────────────────────────────────────────────────
+function openMenu() {
+  document.getElementById('menuOverlay').classList.add('open');
+  renderSpec('s2');
+}
+function closeMenu() {
+  document.getElementById('menuOverlay').classList.remove('open');
+  const curr = document.querySelector('.screen.active');
+  if (curr) renderSpec(curr.id);
+}
+function handleOverlayClick(e) { if (e.target === document.getElementById('menuOverlay')) closeMenu(); }
+
+// ─── S3 ──────────────────────────────────────────────────────
+function initS3() {
+  document.getElementById('s3CtaStat').textContent = '80여 개 시리즈, 2만여 편의 미술 이야기';
+  renderS3Latest();
+}
+
+function initS8() {
+  currentFilter = 'all';
+  const hasChosung = new Set(SERIES.map(s => getChosung(s.title)));
+  document.querySelectorAll('#s8Filters .chip').forEach(btn => {
+    const val = btn.textContent.trim();
+    if (val !== '최신순' && !hasChosung.has(val)) btn.classList.add('disabled');
+    else btn.classList.remove('disabled');
+  });
+  renderS8List('all');
+}
+
+function renderS3Latest() {
+  const allArts = Object.entries(ARTICLES).flatMap(([sid, arts]) =>
+    arts.map(a => ({ ...a, seriesId: +sid }))
+  ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  document.getElementById('s3LatestList').innerHTML = allArts.map(a => {
+    const s = SERIES.find(s => s.id === a.seriesId);
+    return `
+      <div class="article-card" onclick="nav('s5',{id:${a.id}})">
+        <div class="series-link" onclick="event.stopPropagation(); nav('s4',{seriesId:${a.seriesId}})">${s?.title || ''}</div>
+        <div class="ac-title">${a.title}</div>
+        <div class="meta"><span>${a.author}</span><span>${a.date}</span></div>
+      </div>`;
+  }).join('');
+}
+
+function getChosung(str) {
+  const code = str.charCodeAt(0) - 0xAC00;
+  if (code < 0 || code > 11171) return str[0];
+  return ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'][Math.floor(code / 28 / 21)];
+}
+
+function renderS8List(filter) {
+  const filtered = (filter === 'all' ? [...SERIES] : SERIES.filter(s => getChosung(s.title) === filter))
+    .sort((a, b) => {
+      if (filter === 'all') {
+        const dateA = (ARTICLES[a.id] || [])[0]?.date || '';
+        const dateB = (ARTICLES[b.id] || [])[0]?.date || '';
+        return dateB.localeCompare(dateA);
+      }
+      return a.title.localeCompare(b.title, 'ko');
+    });
+  document.getElementById('s8List').innerHTML = filtered.map(s => {
+    const first = (ARTICLES[s.id] || [])[0];
+    if (!first) return '';
+    const badgeMap = { '연재칼럼': 'regular', '지난칼럼': 'past', '외부칼럼': 'external' };
+    const badgeClass = badgeMap[s.type] || '';
+    return `
+      <div class="series-card">
+        <div class="sc-body" onclick="nav('s5',{id:${first.id}})">
+          <div style="display:flex; align-items:center; gap:7px; margin-bottom:5px;">
+            <div class="sc-title-link" style="margin-bottom:0;" onclick="event.stopPropagation(); nav('s4',{seriesId:${s.id}})">${s.title}</div>
+            <span class="series-badge ${badgeClass}">${s.type}</span>
+          </div>
+          <div class="sc-author">${s.author}</div>
+          <hr class="sc-divider">
+          <div class="sc-latest-lbl">최신글</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+            <div class="sc-latest-ttl">${first.title}</div>
+            <div style="font-size:11px; color:#bbb; white-space:nowrap;">${first.date}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterSeriesS8(btn, type) {
+  document.querySelectorAll('#s8Filters .chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+  currentFilter = type;
+  renderS8List(type);
+}
+
+// ─── S4 ──────────────────────────────────────────────────────
+function initS4(seriesId) {
+  currentSeriesId = seriesId;
+  const s = SERIES.find(s => s.id === seriesId);
+  if (!s) return;
+
+  document.getElementById('s4Title').textContent = s.title;
+  const statusEl = document.getElementById('s4Status');
+  const badgeMap = { '연재칼럼': ['연재칼럼', 'regular'], '지난칼럼': ['지난칼럼', 'past'], '외부칼럼': ['외부칼럼', 'external'] };
+  const badge = badgeMap[s.type];
+  if (badge) { statusEl.textContent = badge[0]; statusEl.className = 'series-badge ' + badge[1]; }
+  else { statusEl.textContent = ''; statusEl.className = 'series-badge'; }
+  const authorBox = document.getElementById('s4AuthorBox');
+  const firstArt = (ARTICLES[seriesId] || [])[0];
+  if (firstArt?.bio) {
+    document.getElementById('s4AuthorName').textContent = firstArt.author;
+    document.getElementById('s4Desc').textContent = firstArt.bio;
+    authorBox.style.display = '';
+  } else { authorBox.style.display = 'none'; }
+
+  const arts = ARTICLES[seriesId] || [];
+  document.getElementById('s4Count').textContent = arts.length;
+  document.getElementById('s4List').innerHTML = arts.map(a => `
+    <div class="article-card" onclick="nav('s5',{id:${a.id}})">
+      <div class="ac-title">${a.title}</div>
+      <div class="meta"><span>${a.author}</span><span>${a.date}</span><span>조회 ${a.views.toLocaleString()}</span></div>
+    </div>`).join('');
+}
+
+function toggleSort(btn, onId, offId) {
+  document.getElementById(onId).classList.add('on');
+  document.getElementById(offId).classList.remove('on');
+}
+
+// ─── S5 ──────────────────────────────────────────────────────
+function initS5(articleId) {
+  const a = ART_MAP[articleId];
+  if (!a) return;
+
+  const sid = ART_SERIES[articleId] || currentSeriesId;
+  currentSeriesId = sid;
+  const s = SERIES.find(s => s.id === sid);
+
+  document.getElementById('s5SeriesLink').textContent = s ? s.title : '시리즈';
+  document.getElementById('s5Title').textContent = a.title;
+  document.getElementById('s5Author').textContent = a.author;
+  document.getElementById('s5Date').textContent = a.date;
+  document.getElementById('s5Cta').textContent = `${s ? s.title : '시리즈'} 전체 보기 →`;
+  document.getElementById('s5Body').innerHTML = BODY_PARAGRAPHS.map(p => `<p>${p}</p>`).join('');
+
+  if (a.bio) {
+    document.getElementById('s5AuthorName').textContent = a.author;
+    document.getElementById('s5AuthorBio').textContent = a.bio;
+    document.getElementById('s5AuthorBox').style.display = '';
+  } else {
+    document.getElementById('s5AuthorBox').style.display = 'none';
+  }
+
+  const same = (ARTICLES[sid] || []).filter(x => x.id !== articleId).slice(0, 3);
+  document.getElementById('s5SameSeries').innerHTML =
+    `<div class="pn-section-title">관련 칼럼</div>` +
+    same.map(x => `
+      <div class="pn-card" onclick="nav('s5',{id:${x.id}})">
+        <div class="pn-title">${x.title}</div>
+        <div class="pn-meta">${x.date}</div>
+      </div>`).join('');
+
+  const otherSid = sid === 1 ? 3 : 1;
+  const other = (ARTICLES[otherSid] || [])[0];
+  if (other) {
+    document.getElementById('s5OtherTitle').textContent = other.title;
+    const os = SERIES.find(s => s.id === otherSid);
+    document.getElementById('s5OtherMeta').textContent = `${os ? os.title : ''} · ${other.date}`;
+    document.getElementById('s5OtherCard').onclick = () => nav('s5', { id: other.id });
+  }
+}
+
+// ─── S7 ──────────────────────────────────────────────────────
+function initS7(magId) {
+  const m = MAGAZINES[magId] || MAGAZINES[1];
+  document.getElementById('s7Title').textContent = m.title;
+  document.getElementById('s7Author').textContent = m.author;
+  document.getElementById('s7Date').textContent = m.date;
+  document.getElementById('s7Body').innerHTML = m.body;
+
+  document.getElementById('s7AuthorBox').style.display = '';
+
+  const related = Object.values(MAGAZINES).filter(x => x.id !== magId).slice(0, 2);
+  document.getElementById('s7RelatedList').innerHTML = related.map(r => `
+    <div class="pn-card" onclick="nav('s7',{id:${r.id}})">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div class="thumb thumb-mini">[썸네일]</div>
+        <div>
+          <div class="pn-title">${r.title}</div>
+          <div class="pn-meta">${r.author} · ${r.date}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+initS3();
+renderSpec('s1');
+</script>
+</body>
+</html>
